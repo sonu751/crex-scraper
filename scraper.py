@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import json
 import os
@@ -15,13 +15,16 @@ def scrape():
         return jsonify({"error": "URL is required"}), 400
     
     url = url.replace('crex.com', 'crex.live')
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    }
-
+    
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        # Cloudscraper mimics a real Google Chrome browser
+        scraper = cloudscraper.create_scraper(browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        })
+        response = scraper.get(url, timeout=15)
+        
         soup = BeautifulSoup(response.text, 'html.parser')
         script_tag = soup.find('script', id='__NEXT_DATA__')
         
@@ -29,7 +32,7 @@ def scrape():
             data = json.loads(script_tag.string)
             return jsonify({"success": True, "data": data})
         else:
-            return jsonify({"success": False, "error": "__NEXT_DATA__ not found. (Blocked)"}), 404
+            return jsonify({"success": False, "error": "__NEXT_DATA__ not found. (Cloudflare Blocked)"}), 404
             
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
